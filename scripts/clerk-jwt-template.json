@@ -1,0 +1,10 @@
+{
+  "name": "convex",
+  "claims": {
+    "aud": "convex",
+    "email": "{{user.primary_email_address}}",
+    "email_verified": "{{user.email_verified}}",
+    "given_name": "{{user.first_name}}"
+  },
+  "lifetime": 60
+}

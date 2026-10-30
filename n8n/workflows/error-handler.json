@@ -1,0 +1,101 @@
+{
+  "id": "lendloopErrors01",
+  "name": "LendLoop - Error handler",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "nodes": [
+    {
+      "id": "7a9e3ae7-5cc2-4478-86f0-6f251e79f062",
+      "name": "When a LendLoop workflow fails",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "2b6a6a0e-6c1f-4a43-9d0b-0b8e2f8b5a11",
+      "name": "Build signed report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Runs when any LendLoop workflow fails after its retries. Reports the failure to\n// Convex so it shows in the app's admin view, and logs it here as well.\nconst crypto = require(\"crypto\");\nconst e = $input.first().json;\nconst report = {\n  executionId: String((e.execution && e.execution.id) || `trigger-${Date.now()}`),\n  workflowName: (e.workflow && e.workflow.name) || \"unknown workflow\",\n  node: (e.execution && e.execution.lastNodeExecuted) || undefined,\n  message: String(\n    (e.execution && e.execution.error && e.execution.error.message) ||\n      (e.trigger && e.trigger.error && e.trigger.error.message) ||\n      \"Unknown error\",\n  ).slice(0, 1000),\n};\nconsole.error(\"[LendLoop] workflow failed\", JSON.stringify(report));\n\nconst path = \"/n8n/workflow-error\";\nconst body = JSON.stringify(report);\nconst timestamp = Math.floor(Date.now() / 1000).toString();\nconst signature = crypto\n  .createHmac(\"sha256\", $env.N8N_TO_CONVEX_SECRET)\n  .update(`${timestamp}.POST.${path}.${body}`)\n  .digest(\"hex\");\nreturn [{ json: { url: `${$env.CONVEX_SITE_URL}${path}`, body, timestamp, signature: `sha256=${signature}` } }];"
+      }
+    },
+    {
+      "id": "4c1e9a3d-2f7b-4e58-9a61-7d3b2c8e1f02",
+      "name": "Report to Convex",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-lendloop-timestamp",
+              "value": "={{ $json.timestamp }}"
+            },
+            {
+              "name": "x-lendloop-signature",
+              "value": "={{ $json.signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 10000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When a LendLoop workflow fails": {
+      "main": [
+        [
+          {
+            "node": "Build signed report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build signed report": {
+      "main": [
+        [
+          {
+            "node": "Report to Convex",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
