@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.clerk/
+!.env.example
+
+# tooling files written by local agents and dev servers
+AGENTS.md
+CLAUDE.md
+.playwright-mcp/

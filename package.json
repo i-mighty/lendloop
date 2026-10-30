@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "setup": "./scripts/setup-local.sh"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.22",
